@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download CV Info</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            margin-bottom: 20px;
+            color: #333;
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Extracted CV Information</h1>
+        <table>
+            <tr>
+                <th>Filename</th>
+                <th>Email</th>
+                <th>Phone Number</th>
+                <th>Text</th>
+            </tr>
+            {% for cv_data in data %}
+                <tr>
+                    <td>{{ cv_data['Filename'] }}</td>
+                    <td>{{ cv_data['Email'] }}</td>
+                    <td>{{ cv_data['Phone Number'] }}</td>
+                    <td>{{ cv_data['Text'] }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+        <form action="/download" method="get">
+            {% for cv_data in data %}
+                <input type="hidden" name="data" value="{{ cv_data }}">
+            {% endfor %}
+            <button type="submit">Download</button>
+        </form>
+    </div>
+</body>
+</html>
