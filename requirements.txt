@@ -4,3 +4,4 @@ pandas==2.0.3
 pdfminer.six==20231228
 python-docx==1.1.0
 gunicorn==21.2.0
+XlsxWriter==3.2.0
