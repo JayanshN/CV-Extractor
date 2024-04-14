@@ -71,44 +71,40 @@
         </tr>
         {% endfor %}
       </table>
-      <form id="downloadForm" action="/download" method="post">
-        {% for cv_data in data %}
-        <input type="hidden" name="data[]" value="{{ data[0] }}" />
-        {% endfor %}
-        <button type="button" id="submitbtn" class="download-button">
-          Download
-        </button>
-      </form>
+      <button type="button" id="downloadButton" class="download-button">Download</button>
     </div>
-
+    
     <script>
-
-      function downloadData() {
-        document.getElementById("downloadForm").submit();
-      }
-      document.getElementById("submitbtn").addEventListener("click", () => {
-        {%for cv_data in data%}
-        const jsonData = {{data[0]|tojson}};
-        {%endfor%}
-        console.log(jsonData);
-        fetch("download", {
+      document.getElementById("downloadButton").addEventListener("click", () => {
+        const dataRows = Array.from(document.querySelectorAll('table tr:not(:first-child)'));
+        const jsonData = dataRows.map(row => {
+          const cells = row.querySelectorAll('td');
+          return {
+            "Filename": cells[0].textContent.trim(),
+            "Email": cells[1].textContent.trim(),
+            "Phone Number": cells[2].textContent.trim(),
+            "Text": cells[3].textContent.trim()
+          };
+        });
+        
+        fetch("/download", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(jsonData) ,
+          body: JSON.stringify(jsonData),
         })
           .then((response) => response.blob())
           .then((blob) => {
-            const url = window.URL.createObjectURL(new Blob([blob]));
+            const url = window.URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = url;
             link.setAttribute("download", "cv_info.xlsx");
             document.body.appendChild(link);
             link.click();
-            link.parentNode.removeChild(link);
+            document.body.removeChild(link); // Remove the link after download
           });
       });
     </script>
-  </body>
+    </body>
 </html>
