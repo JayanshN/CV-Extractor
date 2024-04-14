@@ -6,12 +6,13 @@ import os
 import pandas as pd
 from pdfminer.high_level import extract_text
 from docx import Document
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request, send_file, jsonify
 
 app = Flask(__name__)
 
 # Configure logging
 logging.basicConfig(filename='cv_extraction.log', level=logging.DEBUG)
+
 
 def extract_text_from_pdf(file_obj):
     try:
@@ -23,6 +24,7 @@ def extract_text_from_pdf(file_obj):
     except Exception as e:
         logging.error(f"Error extracting text from PDF: {e}")
         return None
+
 
 def extract_text_from_docx(file_obj):
     try:
@@ -36,6 +38,7 @@ def extract_text_from_docx(file_obj):
         logging.error(f"Error extracting text from DOCX: {e}")
         return None
 
+
 def extract_info_from_cv(file):
     filename = file.filename
     try:
@@ -47,27 +50,45 @@ def extract_info_from_cv(file):
             return None
 
         if text:
-            email = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', text)
-            phone_numbers = re.findall(r'(\d{3}[-\.\s]??\d{3}[-\.\s]??\d{4}|\(\d{3}\)\s*\d{3}[-\.\s]??\d{4}|\d{3}[-\.\s]??\d{4})', text)
+            email = re.findall(
+                r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', text)
+            phone_numbers = re.findall(
+                r'(\d{3}[-\.\s]??\d{3}[-\.\s]??\d{4}|\(\d{3}\)\s*\d{3}[-\.\s]??\d{4}|\d{3}[-\.\s]??\d{4})', text)
+
+            # Replace everything except characters, numbers, and single spaces
+            text = re.sub(r'[^\w\s]+|_+', '', text)
+
+            # Replace multiple variations of newlines with a single newline
+            text = re.sub(r'[\r\n]+', '\n', text)
+
+            # Remove leading and trailing whitespace from each line
+            text = '\n'.join(line.strip() for line in text.split('\n'))
+
+            # Remove empty lines
+            text = re.sub(r'\n+', '\n', text)
 
             return {
-                'Filename': filename,
-                'Email': email[0] if email else None,
-                'Phone Number': phone_numbers[0] if phone_numbers else None,
-                'Text': text
+                "Filename": filename,
+                "Email": email[0] if email else None,
+                "Phone Number": phone_numbers[0] if phone_numbers else None,
+                "Text": text
             }
+
     except Exception as e:
         logging.error(f"Error processing {filename}: {e}")
         return None
+
 
 @app.route('/')
 def index():
     return render_template('upload.html')
 
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     uploaded_files = request.files.getlist('file[]')
     extracted_data = []
+
     for file in uploaded_files:
         if file.filename != '':
             logging.info(f"Uploaded file: {file.filename}")
@@ -80,27 +101,27 @@ def upload_file():
         return render_template('download.html', data=extracted_data)
     return "Error processing files."
 
-@app.route('/download', methods=['GET'])
+
+@app.route('/download', methods=['POST'])
 def download():
-    extracted_data = request.args.getlist('data')
-    if extracted_data:
-        data_dicts = []
-        for data_str in extracted_data:
-            data = ast.literal_eval(data_str)
-            standardized_data = {'Filename': None, 'Email': None, 'Phone Number': None, 'Text': None}
-            standardized_data.update(data)
-            data_dicts.append(standardized_data)
-        
-        if data_dicts:
-            df = pd.DataFrame(data_dicts)
+    try:
+        extracted_data = request.json
+        mydict = extracted_data
+        if mydict:
+            df = df = pd.DataFrame([mydict])
+            print(df)
             with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as temp_file:
-                writer = pd.ExcelWriter(temp_file.name, engine='xlsxwriter')
+                writer = pd.ExcelWriter(
+                    temp_file.name, engine='xlsxwriter')
                 df.to_excel(writer, index=False)
                 writer.close()
 
                 return send_file(temp_file.name, as_attachment=True, download_name='cv_info.xlsx')
-    
-    return "No data to download."
+    except Exception as e:
+        print(e)
+
+    return jsonify({"message": "Error downloading data."}), 400
+
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=True)
