@@ -1,5 +1,4 @@
 import re
-import ast
 import logging
 import tempfile
 import os
@@ -83,7 +82,6 @@ def extract_info_from_cv(file):
 def index():
     return render_template('upload.html')
 
-
 @app.route('/upload', methods=['POST'])
 def upload_file():
     uploaded_files = request.files.getlist('file[]')
@@ -91,37 +89,28 @@ def upload_file():
 
     for file in uploaded_files:
         if file.filename != '':
-            logging.info(f"Uploaded file: {file.filename}")
             data = extract_info_from_cv(file)
             if data:
-                logging.info(f"Extracted data: {data}")
                 extracted_data.append(data)
 
     if extracted_data:
         return render_template('download.html', data=extracted_data)
     return "Error processing files."
 
-
 @app.route('/download', methods=['POST'])
 def download():
     try:
         extracted_data = request.json
-        mydict = extracted_data
-        if mydict:
-            df = df = pd.DataFrame([mydict])
-            print(df)
+        df = pd.DataFrame(extracted_data)
+        if not df.empty:
             with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as temp_file:
-                writer = pd.ExcelWriter(
-                    temp_file.name, engine='xlsxwriter')
-                df.to_excel(writer, index=False)
-                writer.close()
-
-                return send_file(temp_file.name, as_attachment=True, download_name='cv_info.xlsx')
+                df.to_excel(temp_file.name, index=False)
+                temp_file.seek(0)
+                return send_file(temp_file.name, as_attachment=True, download_name='cv_info.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception as e:
         print(e)
 
     return jsonify({"message": "Error downloading data."}), 400
-
 
 if __name__ == "__main__":
     app.run(debug=True)
