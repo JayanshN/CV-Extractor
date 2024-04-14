@@ -6,6 +6,7 @@ import pandas as pd
 from pdfminer.high_level import extract_text
 from docx import Document
 from flask import Flask, render_template, request, send_file, jsonify
+import asyncio
 
 app = Flask(__name__)
 
@@ -36,6 +37,11 @@ def extract_text_from_docx(file_obj):
     except Exception as e:
         logging.error(f"Error extracting text from DOCX: {e}")
         return None
+
+
+async def process_file(file):
+    data = extract_info_from_cv(file)
+    return data
 
 
 def extract_info_from_cv(file):
@@ -82,20 +88,24 @@ def extract_info_from_cv(file):
 def index():
     return render_template('upload.html')
 
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     uploaded_files = request.files.getlist('file[]')
     extracted_data = []
 
-    for file in uploaded_files:
-        if file.filename != '':
-            data = extract_info_from_cv(file)
-            if data:
-                extracted_data.append(data)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    tasks = [process_file(file) for file in uploaded_files]
+    extracted_data = loop.run_until_complete(asyncio.gather(*tasks))
+    loop.close()
+
+    extracted_data = [data for data in extracted_data if data]  # Remove None values
 
     if extracted_data:
         return render_template('download.html', data=extracted_data)
     return "Error processing files."
+
 
 @app.route('/download', methods=['POST'])
 def download():
@@ -111,6 +121,7 @@ def download():
         print(e)
 
     return jsonify({"message": "Error downloading data."}), 400
+
 
 if __name__ == "__main__":
     app.run(debug=True)
